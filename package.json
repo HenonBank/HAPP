@@ -1,0 +1,18 @@
+{
+  "name": "happ-decryptor",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@noble/ciphers": "^2.2.0",
+    "node-forge": "^1.4.0"
+  },
+  "devDependencies": {
+    "vite": "^8.0.8"
+  }
+}

@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script>if(screen.width<480)document.querySelector('meta[name=viewport]').content='width=480';</script>
+  <title>Happ Link Decryptor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Major+Mono+Display&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <script type="module" src="/src/main.js"></script>
+</head>
+<body>
+
+  <div class="backdrop" aria-hidden="true">
+    <div class="backdrop-grid"></div>
+    <div class="backdrop-scanlines"></div>
+    <div class="backdrop-glow glow-cyan"></div>
+    <div class="backdrop-glow glow-pink"></div>
+  </div>
+
+  <header class="page-header">
+    <div class="brand-lockup">
+      <p class="eyebrow">Proxy Utility // Deep Link Console</p>
+      <h1>
+        <span>Happ Link</span>
+        <span>Decryptor</span>
+      </h1>
+      <p class="intro">
+        A client-side decoder for every supported <code>happ://</code> link format.
+        Paste a link, decrypt it locally, and inspect the destination without
+        sending the payload anywhere.
+      </p>
+    </div>
+    <div class="header-status">
+      <span class="badge">crypt · crypt2 · crypt3 · crypt4 · crypt5</span>
+      <div class="status-row">
+        <span class="status-chip">Last Updated · May 12 2026</span>
+        <a class="github-link" href="https://github.com/LeeeeT/happ-decryptor" target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 24 24" aria-hidden="true" width="22" height="22" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/></svg>
+          View on GitHub
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+
+    <section class="hero-grid">
+
+    <!-- ── Decryptor tool ─────────────────────────────────────────────────── -->
+    <div class="tool-card panel">
+      <div class="panel-kicker">Decode Console</div>
+      <h2>Decrypt a link</h2>
+      <p class="subtitle">
+        Paste a <code>happ://crypt…</code> deep link and fire the decoder.
+        Everything runs locally in this tab — no payload leaves your browser.
+      </p>
+
+      <label for="linkInput">Happ link</label>
+      <textarea
+        id="linkInput"
+        placeholder="happ://crypt5/iaii…"
+        spellcheck="false"
+        autocomplete="off"
+      ></textarea>
+
+      <button id="decryptBtn">Decrypt</button>
+      <p class="hint">Ctrl + Enter to run</p>
+
+      <div class="result-box" id="resultBox">
+        <label>Result</label>
+        <div class="result-shell">
+          <div class="result-content" id="resultContent"></div>
+          <button id="copyBtn" class="icon-button" type="button" disabled aria-label="Copy result" title="Copy result">
+            <svg class="icon-copy" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 9.75A2.25 2.25 0 0 1 11.25 7.5h7.5A2.25 2.25 0 0 1 21 9.75v7.5a2.25 2.25 0 0 1-2.25 2.25h-7.5A2.25 2.25 0 0 1 9 17.25z" />
+              <path d="M15 7.5V6.75A2.25 2.25 0 0 0 12.75 4.5h-7.5A2.25 2.25 0 0 0 3 6.75v7.5a2.25 2.25 0 0 0 2.25 2.25H6" />
+            </svg>
+            <svg class="icon-check" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+            <span class="sr-only">Copy result</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <aside class="signal-card panel">
+      <div class="panel-kicker">Signal Map</div>
+      <h2>Coverage</h2>
+      <ul class="signal-list">
+        <li><span>GEN 1-4</span><strong>RSA-PKCS1v15 blocks</strong></li>
+        <li><span>GEN 5</span><strong>RSA + ChaCha20-Poly1305</strong></li>
+        <li><span>DATA</span><strong>34 bundled crypt5 keys</strong></li>
+        <li><span>MODE</span><strong>Client-side only</strong></li>
+      </ul>
+      <div class="mini-pipeline">
+        <span>INPUT</span>
+        <span>PARSE</span>
+        <span>RSA</span>
+        <span>AEAD</span>
+        <span>URL</span>
+      </div>
+      <p class="signal-note">
+        The app ships the static compatibility data it needs for the supported
+        formats, so the full decode path stays inside the browser.
+      </p>
+    </aside>
+
+    </section>
+
+    <!-- ── Write-up ───────────────────────────────────────────────────────── -->
+    <article class="writeup panel">
+      <header>
+        <div class="manual-topbar" aria-hidden="true">
+          <div class="manual-lights">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <p>Reference</p>
+        </div>
+        <h2>Reverse Engineering <code>happ://</code> — Decryption Dossier</h2>
+        <p>
+          This write-up summarizes how the Happ link formats were reverse-
+          engineered and how the browser decrypts each generation locally.
+        </p>
+        <div class="writeup-meta">
+          <span>5 generations</span>
+          <span>34 crypt5 marker keys</span>
+          <span>Payload-derived marker</span>
+          <span>Local browser runtime</span>
+        </div>
+      </header>
+
+      <h3>Background: The <code>happ://</code> URI Scheme</h3>
+      <p>
+        The <code>happ://</code> URI scheme is a custom deep-link protocol used
+        by a mobile application to wrap destination URLs in encrypted payloads.
+        Instead of exposing a plain <code>https://</code> link, the app emits a
+        payload that only the bundled client logic can decode. This project
+        reimplements that client-side logic in JavaScript and supports every
+        currently bundled generation: <code>crypt</code> through
+        <code>crypt5</code>.
+      </p>
+
+      <h3>Generations 1–4: Hardcoded RSA Keys</h3>
+      <p>
+        The first four generations are direct RSA-PKCS1v15 wrappers. A target
+        URL is encrypted, split into fixed-size blocks matching the key modulus,
+        and Base64-encoded:
+      </p>
+      <pre><code>happ://crypt/&lt;base64( RSA_block1 || RSA_block2 || ... )&gt;</code></pre>
+
+      <div class="table-wrap">
+      <table class="layout-table">
+        <thead><tr><th>Scheme</th><th>Key size</th><th>Block size (bytes)</th><th>Algorithm</th></tr></thead>
+        <tbody>
+          <tr><td>crypt</td><td>RSA-1024</td><td>128</td><td>PKCS1v15</td></tr>
+          <tr><td>crypt2</td><td>RSA-4096</td><td>512</td><td>PKCS1v15</td></tr>
+          <tr><td>crypt3</td><td>RSA-4096</td><td>512</td><td>PKCS1v15</td></tr>
+          <tr><td>crypt4</td><td>RSA-4096</td><td>512</td><td>PKCS1v15</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p>
+        Decryption is symmetric: split the Base64 payload back into RSA-sized
+        blocks, decrypt each block independently, and concatenate the plaintext
+        fragments to recover the final URL. The implementation accepts both
+        standard and URL-safe Base64 alphabets, so the browser path normalizes
+        <code>-</code> and <code>_</code> and restores missing padding before
+        decoding.
+      </p>
+      <p>Each legacy private key is embedded directly in the application bytecode.</p>
+
+      <h3>Generation 5: Payload Layout And Native Keying</h3>
+      <p>
+        <code>crypt5</code> is the format that required actual reverse
+        engineering. Its decryption path combines a custom wire format,
+        marker-based RSA key lookup, RSA-PKCS1v15 for key unwrapping, and
+        ChaCha20-Poly1305 for the final URL ciphertext.
+      </p>
+
+      <h4>Payload Obfuscation: The Block-Pair Swap</h4>
+      <p>
+        The whole payload is shipped through a single fixed permutation we
+        call the <em>block-pair swap</em>. Every full 4-character block rotates
+        by two characters (<code>ABCD → CDAB</code>); any 1–3 byte tail passes
+        through unchanged. The transform is its own inverse, so encoding and
+        decoding use the same operation. Decoding the payload starts with one
+        invocation across the entire string:
+      </p>
+      <pre><code>shuffled = blockPairSwap(payload)</code></pre>
+
+      <h4>Payload Structure</h4>
+      <p>
+        After that single shuffle, the structure of <code>shuffled</code> falls
+        out by direct slicing. There is no per-field swap and no carry between
+        adjacent fields:
+      </p>
+      <div class="table-wrap">
+      <table class="layout-table">
+        <thead>
+          <tr><th>Offset</th><th>Length</th><th>Field</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>0</td><td>4</td><td>First half of the 8-character marker (RSA key id)</td></tr>
+          <tr><td>4</td><td>12</td><td>ChaCha20 nonce</td></tr>
+          <tr><td>16</td><td><em>d</em> ≥ 1</td><td>ASCII decimal digits — length <code>N</code> of the URL segment</td></tr>
+          <tr><td>16+<em>d</em></td><td>1</td><td>Internal marker byte (discarded)</td></tr>
+          <tr><td>17+<em>d</em></td><td><em>N</em></td><td>URL ciphertext, Base64</td></tr>
+          <tr><td>17+<em>d</em>+<em>N</em></td><td>varies</td><td>RSA ciphertext, Base64 — fills the gap to the last 4 chars (684 for RSA-4096, 344 for RSA-2048, etc.)</td></tr>
+          <tr><td>end−4</td><td>4</td><td>Second half of the marker</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>
+        Parsing is a straightforward sequence:
+      </p>
+      <pre><code>shuffled = blockPairSwap(payload)
+marker   = shuffled[:4] + shuffled[-4:]
+body     = shuffled[4:-4]
+
+nonce    = body[:12]
+N, d     = parse_leading_decimal(body[12:])
+packed   = body[12 + d:]
+url_b64  = packed[1 : 1 + N]            # skip 1 marker byte
+enc_str  = packed[1 + N:]               # RSA Base64 fills the remainder</code></pre>
+      <p>
+        Reading <code>N</code> from a digit run rather than a fixed-size header
+        block lets any size of URL segment ride through, including 4-digit
+        values. Sizing the RSA segment as <em>rest of body</em> rather than a
+        hardcoded 684 chars keeps the parser correct if a key uses a different
+        modulus.
+      </p>
+
+      <h4>Marker Derivation</h4>
+      <p>
+        The 8-character marker is the first and last quartets of the shuffled
+        string concatenated together. It is used directly as a key into the
+        bundled 34-entry RSA key table:
+      </p>
+      <pre><code>marker   = shuffled[:4] + shuffled[-4:]
+rsa_key  = crypt5_keys[marker]</code></pre>
+
+      <h4>Key Expansion And Reconstruction</h4>
+      <p>
+        The RSA material referenced by the app is stored in an obfuscated form.
+        The smali strings are not complete PKCS#8 private keys on their own; the
+        native path expands them via <code>sub_17b1d0</code> before the RSA
+        engine can consume them.
+      </p>
+      <p>
+        For the web build, that native expansion is performed offline. The raw
+        strings expose the RSA-CRT values <code>q</code>, <code>dp</code>,
+        <code>dq</code>, and <code>qi</code>. Recovering the missing prime
+        <code>p</code> from those fragments makes it possible to rebuild the full
+        RSA-4096 private key, serialize it as PKCS#8, and bundle the result as a
+        static JSON asset for the app's 34-key compatibility snapshot.
+      </p>
+
+      <h3>The Full <code>crypt5</code> Decryption Pipeline</h3>
+      <div class="pipeline"><span class="label">crypt5 URI payload</span>
+    ├─ strip <span class="comment">happ://crypt5/</span>
+    ├─ shuffled = blockPairSwap(payload)
+    ├─ marker = shuffled[:4] + shuffled[-4:]
+    │  └─ <span class="label">8-char RSA key id</span>
+    ├─ body = shuffled[4:-4]
+    ├─ nonce = body[:12]
+    │  └─ <span class="label">12-byte ChaCha nonce</span>
+    ├─ N = parse leading decimal in body[12:]
+    ├─ skip 1 marker byte
+    ├─ url_b64 = next N chars
+    │  └─ <span class="label">Base64 URL ciphertext</span>
+    ├─ enc_str = remaining body chars
+    │  └─ <span class="label">Base64 RSA field (684 chars for RSA-4096)</span>
+    ├─ base64-decode → <span class="label">RSA ciphertext (512 bytes for RSA-4096)</span>
+    ├─ look marker up in the bundled 34-key table
+    ├─ load bundled PKCS#8 RSA private key
+    ├─ RSA-PKCS1v15.decrypt(ciphertext, key)
+    │  └─ returns <span class="label">44-char Base64 string</span>
+    ├─ swapPairs(rsa_plaintext)
+    ├─ base64-decode → <span class="label">32-byte ChaCha20 key</span>
+    ├─ base64-decode(url_b64)
+    │  └─ yields <span class="label">ciphertext || 16-byte Poly1305 tag</span>
+    ├─ ChaCha20-Poly1305.decrypt(ciphertext, nonce, key)
+    │  └─ returns <span class="label">intermediate string</span>
+    ├─ swapPairs(intermediate)
+    └─ base64-decode → <span class="label">final URL</span></div>
+
+      <p>
+        Two different string transforms appear in this pipeline and must not be
+        confused. <em>blockPairSwap</em> operates on each 4-character block and
+        swaps the two 2-character halves (<code>ABCD → CDAB</code>); it is
+        applied once to the whole payload to recover the wire layout.
+        <em>swapPairs</em> operates over the full string and swaps every
+        adjacent pair (<code>ABCD → BADC</code>); it is applied to the RSA
+        plaintext and the ChaCha output before Base64 decode.
+      </p>
+
+      <h3>Browser Implementation</h3>
+      <p>
+        The browser implementation uses two cryptographic dependencies:
+      </p>
+      <ul>
+        <li><strong>RSA-PKCS1v15 decryption</strong> uses <a href="https://github.com/digitalbazaar/forge" target="_blank" rel="noopener">node-forge</a>, because the Web Crypto API does not expose PKCS1v15 RSA decryption.</li>
+        <li><strong>ChaCha20-Poly1305</strong> uses <a href="https://github.com/paulmillr/noble-ciphers" target="_blank" rel="noopener">@noble/ciphers</a>.</li>
+      </ul>
+      <p>
+        The 34 expanded PKCS#8 keys, indexed by marker, are bundled in
+        <code>public/data/expanded_rsa_keys.json</code>, so the complete decrypt
+        path runs locally in the browser without APK assets, native bindings,
+        or server-side help.
+      </p>
+
+    </article>
+
+  </main>
+
+  <footer></footer>
+
+</body>
+</html>
