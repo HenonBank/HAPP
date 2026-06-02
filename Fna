@@ -1,0 +1,589 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <string.h>
+#include <ctype.h>
+
+#ifdef _WIN32
+    #include <windows.h>
+    #define CLEAR "cls"
+    #define SLEEP(ms) Sleep(ms)
+#else
+    #include <unistd.h>
+    #define CLEAR "clear"
+    #define SLEEP(ms) usleep((ms) * 1000)
+#endif
+
+#define MAX_ANIM 5
+#define MAX_HOURS 6
+#define BASE_POWER 100
+#define VENT_PENALTY 5
+#define NOISE_COST 10
+
+typedef struct {
+    char name[20];
+    int position;
+    int aggression;
+    int active;
+} Animatronic;
+
+typedef struct {
+    int night;
+    int hour;
+    int power;
+    int maxPower;
+    int coins;
+    int leftDoorClosed;
+    int rightDoorClosed;
+    int ventBlocked;
+    int cameraOn;
+    int flashlightOn;
+    int flashlightBattery;
+    int audioPlaying;
+    int gameOver;
+    int survived;
+} GameState;
+
+typedef struct {
+    int batteryLevel;
+    int doorReinforce;
+    int ventArmor;
+    int flashlightUpgrade;
+} Upgrades;
+
+Animatronic anims[MAX_ANIM];
+GameState state;
+Upgrades upgrades;
+
+void clearScreen() {
+    system(CLEAR);
+}
+
+void printSlow(char *text, int delay) {
+    for (int i = 0; i < strlen(text); i++) {
+        putchar(text[i]);
+        fflush(stdout);
+        SLEEP(delay);
+    }
+}
+
+void initGame() {
+    srand(time(NULL));
+    
+    strcpy(anims[0].name, "Freddy");
+    anims[0].aggression = 6;
+    
+    strcpy(anims[1].name, "Bonnie");
+    anims[1].aggression = 8;
+    
+    strcpy(anims[2].name, "Chica");
+    anims[2].aggression = 7;
+    
+    strcpy(anims[3].name, "Foxy");
+    anims[3].aggression = 9;
+    
+    strcpy(anims[4].name, "Golden Freddy");
+    anims[4].aggression = 10;
+    
+    state.night = 1;
+    state.coins = 0;
+    state.gameOver = 0;
+    state.survived = 0;
+    
+    upgrades.batteryLevel = 0;
+    upgrades.doorReinforce = 0;
+    upgrades.ventArmor = 0;
+    upgrades.flashlightUpgrade = 0;
+    
+    clearScreen();
+    printf("\n");
+    printf("▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓\n");
+    printf("▓                                                  ▓\n");
+    printf("▓     ███████╗███╗   ██╗ █████╗ ███████╗            ▓\n");
+    printf("▓     ██╔════╝████╗  ██║██╔══██╗██╔════╝            ▓\n");
+    printf("▓     █████╗  ██╔██╗ ██║███████║█████╗              ▓\n");
+    printf("▓     ██╔══╝  ██║╚██╗██║██╔══██║██╔══╝              ▓\n");
+    printf("▓     ██║     ██║ ╚████║██║  ██║██║                 ▓\n");
+    printf("▓     ╚═╝     ╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝                 ▓\n");
+    printf("▓                                                  ▓\n");
+    printf("▓          FIVE NIGHTS AT FREDDY'S                ▓\n");
+    printf("▓            Полноценная C версия                  ▓\n");
+    printf("▓                                                  ▓\n");
+    printf("▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓\n");
+    printf("\n");
+    
+    printSlow("Добро пожаловать в вашу первую ночь охраны...\n", 50);
+    SLEEP(1000);
+    printSlow("Вам предстоит пережить 5 ночей в пиццерии Freddy Fazbear's Pizza.\n", 50);
+    SLEEP(1000);
+    printSlow("Следите за камерами, закрывайте двери и экономьте энергию.\n\n", 50);
+    SLEEP(1000);
+    
+    printf("Нажмите ENTER для начала...");
+    getchar();
+}
+
+void initNight() {
+    for (int i = 0; i < MAX_ANIM; i++) {
+        anims[i].position = 0;
+        anims[i].active = 1;
+        
+        if (i == 4 && state.night < 3) {
+            anims[i].active = 0;
+        }
+        
+        if (i == 3 && state.night >= 3) {
+            anims[i].aggression = 10;
+        }
+    }
+    
+    state.hour = 0;
+    state.leftDoorClosed = 0;
+    state.rightDoorClosed = 0;
+    state.ventBlocked = 0;
+    state.cameraOn = 0;
+    state.flashlightOn = 0;
+    state.flashlightBattery = 100;
+    state.audioPlaying = 0;
+    
+    state.maxPower = BASE_POWER + (upgrades.batteryLevel * 5);
+    state.power = state.maxPower;
+}
+
+void showStatus() {
+    printf("\n╔══════════════════════════════════════════════════════════╗\n");
+    printf("║  НОЧЬ %d  |  ЧАС %d/%d  |  ЭНЕРГИЯ: %3d%%  |  МОНЕТЫ: %4d  ║\n", 
+           state.night, state.hour + 1, MAX_HOURS, state.power, state.coins);
+    printf("╠══════════════════════════════════════════════════════════╣\n");
+    printf("║  ЛЕВАЯ ДВЕРЬ: %-10s  ПРАВАЯ ДВЕРЬ: %-10s  ║\n",
+           state.leftDoorClosed ? "ЗАКРЫТА" : "ОТКРЫТА",
+           state.rightDoorClosed ? "ЗАКРЫТА" : "ОТКРЫТА");
+    printf("║  ВЕНТИЛЯЦИЯ: %-11s  КАМЕРА: %-12s  ║\n",
+           state.ventBlocked ? "ЗАБЛОКИРОВАНА" : "ОТКРЫТА",
+           state.cameraOn ? "ВКЛ" : "ВЫКЛ");
+    printf("║  ФОНАРИК: %-12s  БАТАРЕЯ ФОНАРЯ: %3d%%          ║\n",
+           state.flashlightOn ? "ВКЛ" : "ВЫКЛ", state.flashlightBattery);
+    printf("╚══════════════════════════════════════════════════════════╝\n\n");
+    
+    if (state.cameraOn) {
+        printf("┌───────────── КАМЕРЫ НАБЛЮДЕНИЯ ─────────────┐\n");
+        printf("│                                             │\n");
+        
+        for (int i = 0; i < MAX_ANIM; i++) {
+            if (!anims[i].active) continue;
+            
+            char location[30] = "";
+            switch(anims[i].position) {
+                case 0: strcpy(location, "СЦЕНА"); break;
+                case 1: strcpy(location, "КАМЕРНАЯ ЗОНА"); break;
+                case 2: strcpy(location, "ЛЕВЫЙ КОРИДОР"); break;
+                case 3: strcpy(location, "ПРАВЫЙ КОРИДОР"); break;
+                case 4: strcpy(location, "ВЕНТИЛЯЦИЯ"); break;
+                case 5: strcpy(location, "КУХНЯ"); break;
+                default: strcpy(location, "НЕИЗВЕСТНО");
+            }
+            
+            if (anims[i].position <= 1) {
+                printf("│  📹 %-12s: %-20s     │\n", anims[i].name, location);
+            }
+        }
+        printf("│                                             │\n");
+        printf("└─────────────────────────────────────────────┘\n\n");
+    } else {
+        int threats = 0;
+        for (int i = 0; i < MAX_ANIM; i++) {
+            if (!anims[i].active) continue;
+            
+            if (anims[i].position == 2) {
+                printf("⚠️  %s В ЛЕВОМ КОРИДОРЕ! ⚠️\n", anims[i].name);
+                threats++;
+            }
+            if (anims[i].position == 3) {
+                printf("⚠️  %s В ПРАВОМ КОРИДОРЕ! ⚠️\n", anims[i].name);
+                threats++;
+            }
+            if (anims[i].position == 4 && !state.ventBlocked) {
+                printf("🔊 Слышен шум из вентиляции! (%s)\n", anims[i].name);
+                threats++;
+            }
+        }
+        if (threats == 0) {
+            printf("Тихо... Никого не видно.\n");
+        }
+    }
+    
+    printf("\n");
+}
+
+void flashlightMinigame() {
+    if (state.flashlightBattery <= 0) {
+        printf("\n❌ Батарейка фонарика села!\n");
+        return;
+    }
+    
+    printf("\n🔦 ВКЛЮЧАЕМ ФОНАРИК 🔦\n");
+    printf("Что-то движется в темноте...\n");
+    SLEEP(1000);
+    
+    int found = 0;
+    for (int i = 0; i < MAX_ANIM; i++) {
+        if (anims[i].active && anims[i].position == 1) {
+            printf("💀 %s был рядом с вами! Вы его спугнули!\n", anims[i].name);
+            anims[i].position = 0;
+            found = 1;
+        }
+    }
+    
+    if (!found) {
+        printf("Никого... Возможно, показалось.\n");
+    }
+    
+    int cost = 5 - upgrades.flashlightUpgrade;
+    if (cost < 2) cost = 2;
+    state.flashlightBattery -= cost;
+    if (state.flashlightBattery < 0) state.flashlightBattery = 0;
+    
+    state.flashlightOn = 0;
+    SLEEP(800);
+}
+
+void shop() {
+    clearScreen();
+    printf("\n╔════════════════════════════════════════════════╗\n");
+    printf("║               🛒 МАГАЗИН УЛУЧШЕНИЙ 🛒          ║\n");
+    printf("╠════════════════════════════════════════════════╣\n");
+    printf("║  Монет: %-44d ║\n", state.coins);
+    printf("╚════════════════════════════════════════════════╝\n\n");
+    
+    printf("1. 📈 Улучшение батареи (+5%% макс. энергии) - 50 монет\n");
+    printf("   Текущий уровень: %d\n", upgrades.batteryLevel);
+    printf("\n2. 🚪 Укрепление дверей (-2 энергии на дверь) - 60 монет\n");
+    printf("   Текущий уровень: %d\n", upgrades.doorReinforce);
+    printf("\n3. 🛡️ Броня вентиляции (дольше блокировка) - 70 монет\n");
+    printf("   Текущий уровень: %d\n", upgrades.ventArmor);
+    printf("\n4. 🔦 Экономия фонарика (меньше расход) - 40 монет\n");
+    printf("   Текущий уровень: %d\n", upgrades.flashlightUpgrade);
+    printf("\n5. ❌ Выход\n");
+    
+    printf("\nВыберите улучшение: ");
+    int choice;
+    scanf("%d", &choice);
+    
+    switch(choice) {
+        case 1:
+            if (state.coins >= 50 && upgrades.batteryLevel < 5) {
+                state.coins -= 50;
+                upgrades.batteryLevel++;
+                printf("\n✅ Батарея улучшена! +5%% к макс. энергии\n");
+            } else {
+                printf("\n❌ Не хватает монет или достигнут максимум!\n");
+            }
+            break;
+        case 2:
+            if (state.coins >= 60 && upgrades.doorReinforce < 3) {
+                state.coins -= 60;
+                upgrades.doorReinforce++;
+                printf("\n✅ Двери укреплены! -2 энергии на дверь\n");
+            } else {
+                printf("\n❌ Не хватает монет или достигнут максимум!\n");
+            }
+            break;
+        case 3:
+            if (state.coins >= 70 && upgrades.ventArmor < 3) {
+                state.coins -= 70;
+                upgrades.ventArmor++;
+                printf("\n✅ Вентиляция укреплена! Блокировка дольше на 1 час\n");
+            } else {
+                printf("\n❌ Не хватает монет или достигнут максимум!\n");
+            }
+            break;
+        case 4:
+            if (state.coins >= 40 && upgrades.flashlightUpgrade < 3) {
+                state.coins -= 40;
+                upgrades.flashlightUpgrade++;
+                printf("\n✅ Фонарик модернизирован! Меньше расход батареи\n");
+            } else {
+                printf("\n❌ Не хватает монет или достигнут максимум!\n");
+            }
+            break;
+    }
+    
+    printf("\nНажмите ENTER для продолжения...");
+    getchar();
+    getchar();
+}
+
+void saveGame() {
+    FILE *save = fopen("fnaf_save.dat", "wb");
+    if (save) {
+        fwrite(&state.night, sizeof(int), 1, save);
+        fwrite(&state.coins, sizeof(int), 1, save);
+        fwrite(&upgrades, sizeof(Upgrades), 1, save);
+        fclose(save);
+        printf("\n💾 Игра сохранена!\n");
+    }
+}
+
+void loadGame() {
+    FILE *save = fopen("fnaf_save.dat", "rb");
+    if (save) {
+        fread(&state.night, sizeof(int), 1, save);
+        fread(&state.coins, sizeof(int), 1, save);
+        fread(&upgrades, sizeof(Upgrades), 1, save);
+        fclose(save);
+        printf("\n📀 Загрузка сохранения... Ночь %d, Монет: %d\n", state.night, state.coins);
+        SLEEP(1000);
+    } else {
+        printf("\n❌ Сохранение не найдено!\n");
+    }
+}
+
+void handleInput() {
+    printf("\n═══════════════════════════════════════════════════════════\n");
+    printf("  [C] Камера  [L] Лев.дверь  [R] Прав.дверь  [V] Вентиляция\n");
+    printf("  [F] Фонарик  [N] Шумогенератор  [S] Магазин  [Q] Выход\n");
+    printf("═══════════════════════════════════════════════════════════\n");
+    printf("Ваш выбор: ");
+    
+    char input;
+    scanf(" %c", &input);
+    input = tolower(input);
+    
+    switch(input) {
+        case 'c':
+            state.cameraOn = !state.cameraOn;
+            if (state.cameraOn) {
+                printf("\n📷 Камеры активированы (+2 энергии/час)\n");
+            } else {
+                printf("\n📷 Камеры выключены\n");
+            }
+            break;
+            
+        case 'l':
+            if (state.power > 0) {
+                state.leftDoorClosed = !state.leftDoorClosed;
+                printf("\n%s левая дверь\n", state.leftDoorClosed ? "Закрыта" : "Открыта");
+            } else {
+                printf("\n❌ Недостаточно энергии!\n");
+            }
+            break;
+            
+        case 'r':
+            if (state.power > 0) {
+                state.rightDoorClosed = !state.rightDoorClosed;
+                printf("\n%s правая дверь\n", state.rightDoorClosed ? "Закрыта" : "Открыта");
+            } else {
+                printf("\n❌ Недостаточно энергии!\n");
+            }
+            break;
+            
+        case 'v':
+            if (!state.ventBlocked && state.power >= VENT_PENALTY) {
+                state.ventBlocked = 1;
+                printf("\n🔧 Вентиляция заблокирована! (-%d энергии)\n", VENT_PENALTY);
+                state.power -= VENT_PENALTY;
+            } else if (state.ventBlocked) {
+                printf("\n❌ Вентиляция уже заблокирована!\n");
+            } else {
+                printf("\n❌ Недостаточно энергии для блокировки!\n");
+            }
+            break;
+            
+        case 'f':
+            flashlightMinigame();
+            break;
+            
+        case 'n':
+            if (state.power >= NOISE_COST) {
+                state.audioPlaying = 1;
+                printf("\n🔊 Генератор шума активирован! (-%d энергии)\n", NOISE_COST);
+                state.power -= NOISE_COST;
+                
+                for (int i = 0; i < MAX_ANIM; i++) {
+                    if (strcmp(anims[i].name, "Foxy") == 0 && anims[i].active) {
+                        if (anims[i].position > 1) {
+                            printf("🎭 Фокси отвлёкся на шум и отступил!\n");
+                            anims[i].position--;
+                        }
+                    }
+                }
+                state.audioPlaying = 0;
+            } else {
+                printf("\n❌ Недостаточно энергии!\n");
+            }
+            break;
+            
+        case 's':
+            shop();
+            break;
+            
+        case 'q':
+            printf("\nВы уверены? (y/n): ");
+            scanf(" %c", &input);
+            if (input == 'y' || input == 'Y') {
+                state.gameOver = 1;
+            }
+            break;
+            
+        default:
+            printf("\n❌ Неизвестная команда!\n");
+    }
+    SLEEP(500);
+}
+
+void updateAnimatronics() {
+    for (int i = 0; i < MAX_ANIM; i++) {
+        if (!anims[i].active) continue;
+        
+        int moveChance = rand() % 10;
+        if (moveChance < anims[i].aggression) {
+            if (strcmp(anims[i].name, "Foxy") == 0) {
+                if (rand() % 3 == 0 && anims[i].position < 6) {
+                    anims[i].position++;
+                }
+            } else if (strcmp(anims[i].name, "Golden Freddy") == 0 && state.night >= 3) {
+                if (rand() % 5 == 0 && anims[i].position < 5) {
+                    anims[i].position = rand() % 4 + 2;
+                }
+            }
+            
+            if (anims[i].position < 6 && (rand() % 2 == 0)) {
+                anims[i].position++;
+            }
+        }
+    }
+    
+    if (state.ventBlocked) {
+        static int ventTimer = 0;
+        ventTimer++;
+        if (ventTimer >= (2 + upgrades.ventArmor)) {
+            state.ventBlocked = 0;
+            ventTimer = 0;
+            printf("\n🔓 Вентиляция разблокирована!\n");
+        }
+    }
+}
+
+void checkAttacks() {
+    for (int i = 0; i < MAX_ANIM; i++) {
+        if (!anims[i].active) continue;
+        
+        if (anims[i].position == 6) {
+            int leftAttack = (strcmp(anims[i].name, "Bonnie") == 0 || 
+                             strcmp(anims[i].name, "Freddy") == 0);
+            
+            if (leftAttack && !state.leftDoorClosed) {
+                printf("\n💀💀💀 %s ВОРВАЛСЯ через ЛЕВУЮ ДВЕРЬ! 💀💀💀\n", anims[i].name);
+                state.gameOver = 1;
+                return;
+            } else if (!leftAttack && !state.rightDoorClosed) {
+                printf("\n💀💀💀 %s ВОРВАЛСЯ через ПРАВУЮ ДВЕРЬ! 💀💀💀\n", anims[i].name);
+                state.gameOver = 1;
+                return;
+            } else {
+                printf("\n🚪 %s разбился о закрытую дверь и отступил!\n", anims[i].name);
+                anims[i].position = 0;
+            }
+        }
+        
+        if (anims[i].position == 4 && !state.ventBlocked) {
+            if (rand() % 3 == 0) {
+                printf("\n🌬️ %s вылез из вентиляции! 🌬️\n", anims[i].name);
+                state.gameOver = 1;
+                return;
+            }
+        }
+    }
+}
+
+void consumePower() {
+    int consumption = 1;
+    
+    if (state.cameraOn) consumption += 2;
+    if (state.leftDoorClosed) consumption += (3 - upgrades.doorReinforce);
+    if (state.rightDoorClosed) consumption += (3 - upgrades.doorReinforce);
+    if (state.flashlightOn) consumption += 1;
+    
+    if (consumption < 1) consumption = 1;
+    
+    state.power -= consumption;
+    if (state.power < 0) state.power = 0;
+    
+    if (state.power == 0) {
+        printf("\n⚡⚡⚡ ПИТАНИЕ ОТКЛЮЧЕНО! ⚡⚡⚡\n");
+        printf("Двери открыты... Вы беспомощны...\n");
+        SLEEP(1500);
+        state.gameOver = 1;
+    }
+}
+
+void playNight() {
+    initNight();
+    
+    while (!state.gameOver && state.hour < MAX_HOURS) {
+        clearScreen();
+        showStatus();
+        handleInput();
+        
+        if (state.gameOver) break;
+        
+        updateAnimatronics();
+        checkAttacks();
+        
+        if (state.gameOver) break;
+        
+        consumePower();
+        
+        if (state.gameOver) break;
+        
+        state.hour++;
+        
+        if (state.hour < MAX_HOURS) {
+            printf("\n⏰ Часы пробили %d час...\n", state.hour + 1);
+            SLEEP(1000);
+        }
+    }
+    
+    if (!state.gameOver && state.hour >= MAX_HOURS) {
+        clearScreen();
+        printf("\n🎉🎉🎉 6 УТРА! ВЫ ВЫЖИЛИ НОЧЬ %d! 🎉🎉🎉\n", state.night);
+        
+        int reward = 100 + state.night * 20;
+        state.coins += reward;
+        printf("💰 Награда: %d монет\n", reward);
+        printf("💰 Всего монет: %d\n", state.coins);
+        
+        state.survived = 1;
+        SLEEP(2000);
+    }
+}
+
+int main() {
+    initGame();
+    
+    while (!state.gameOver && state.night <= 5) {
+        playNight();
+        
+        if (state.gameOver) {
+            printf("\n💀 ВЫ НЕ ВЫЖИЛИ НОЧЬ %d 💀\n", state.night);
+            printf("Игра окончена!\n");
+            break;
+        }
+        
+        if (state.night < 5) {
+            printf("\nПереход на следующую ночь...\n");
+            SLEEP(1500);
+            state.night++;
+        } else {
+            printf("\n🏆🏆🏆 ПОЗДРАВЛЯЮ! ВЫ ПРОШЛИ ВСЕ 5 НОЧЕЙ! 🏆🏆🏆\n");
+            printf("ФИНАЛЬНЫЙ СЧЁТ: %d монет\n", state.coins);
+            break;
+        }
+    }
+    
+    printf("\nНажмите ENTER для выхода...");
+    getchar();
+    getchar();
+    
+    return 0;
+}
