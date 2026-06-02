@@ -1,0 +1,320 @@
+using System;
+
+namespace FnafEarningGame
+{
+    class Program
+    {
+        static Random rand = new Random();
+        
+        // Ресурсы игрока
+        static int coins = 0;
+        static int power = 100;
+        static int night = 1;
+        static int hour = 0;
+        static bool gameRunning = true;
+        
+        // Позиции аниматроников: 0=камера, 1=левый коридор, 2=правый коридор, 3=атакует
+        static int freddyPos = 0, bonniePos = 0, chicaPos = 0;
+        
+        // Состояние дверей и камеры
+        static bool leftDoorClosed = false;
+        static bool rightDoorClosed = false;
+        static bool cameraOpen = false;
+        
+        // Улучшения (купить за монеты)
+        static int batteryUpgrade = 0;      // +5% макс энергии за уровень
+        static int doorReinforce = 0;       // -2 потребления энергии за закрытую дверь
+        static int maxPower = 100;
+        
+        static void Main(string[] args)
+        {
+            Console.Title = "FNAF: Ночной Заработок";
+            Console.ForegroundColor = ConsoleColor.DarkYellow;
+            Console.WriteLine("╔══════════════════════════════════════╗");
+            Console.WriteLine("║   FNAF - Ночная Смена с Заработком   ║");
+            Console.WriteLine("╚══════════════════════════════════════╝");
+            Console.ResetColor();
+            Console.WriteLine("\nВыживай ночи, зарабатывай монеты и покупай улучшения!\n");
+            Console.WriteLine("Нажми любую клавишу для начала...");
+            Console.ReadKey();
+            
+            while (gameRunning)
+            {
+                // Ночной цикл
+                ResetNight();
+                PlayNight();
+                
+                if (gameRunning && hour >= 6)
+                {
+                    // Награда за ночь
+                    int reward = 50 + night * 10;
+                    coins += reward;
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"\n★ НОЧЬ {night} ПРОЙДЕНА! ★");
+                    Console.WriteLine($"Получено монет: {reward} | Всего монет: {coins}");
+                    Console.ResetColor();
+                    
+                    // Магазин улучшений после каждой ночи
+                    Shop();
+                    night++;
+                    
+                    if (night > 5)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Cyan;
+                        Console.WriteLine("\n══════════════════════════════════════");
+                        Console.WriteLine("   ПОЗДРАВЛЯЮ! Вы прошли 5 ночей!");
+                        Console.WriteLine($"   Итоговое количество монет: {coins}");
+                        Console.WriteLine("══════════════════════════════════════");
+                        Console.ResetColor();
+                        break;
+                    }
+                }
+                else if (!gameRunning)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("\n══════════════════════════════════════");
+                    Console.WriteLine("              GAME OVER");
+                    Console.WriteLine($"Вы погибли в ночь {night}");
+                    Console.WriteLine($"Заработано монет: {coins}");
+                    Console.WriteLine("══════════════════════════════════════");
+                    Console.ResetColor();
+                    break;
+                }
+            }
+            
+            Console.WriteLine("\nНажми любую клавишу для выхода...");
+            Console.ReadKey();
+        }
+        
+        static void ResetNight()
+        {
+            // Сброс позиций
+            freddyPos = 0; bonniePos = 0; chicaPos = 0;
+            leftDoorClosed = false;
+            rightDoorClosed = false;
+            cameraOpen = false;
+            hour = 0;
+            
+            // Восстановление энергии с учётом улучшений
+            maxPower = 100 + batteryUpgrade * 5;
+            power = maxPower;
+        }
+        
+        static void PlayNight()
+        {
+            while (gameRunning && hour < 6)
+            {
+                Console.Clear();
+                ShowStatus();
+                HandleInput();
+                
+                if (!gameRunning) break;
+                
+                MoveAnimatronics();
+                CheckAttacks();
+                ConsumePower();
+                
+                if (power <= 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("\n!!! ПИТАНИЕ ОТКЛЮЧЕНО !!!");
+                    Console.WriteLine("Двери открыты... Тьма поглощает вас...");
+                    Console.ResetColor();
+                    gameRunning = false;
+                    break;
+                }
+                
+                System.Threading.Thread.Sleep(700);
+                hour++;
+            }
+        }
+        
+        static void ShowStatus()
+        {
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("╔══════════════════════════════════════╗");
+            Console.WriteLine($"║  НОЧЬ {night}  |  ЧАС {hour+1}/6  |  ЭНЕРГИЯ: {power}%  ║");
+            Console.WriteLine($"║  МОНЕТЫ: {coins}                       ║");
+            Console.WriteLine("╚══════════════════════════════════════╝");
+            Console.ResetColor();
+            
+            Console.WriteLine($"Левая дверь: {(leftDoorClosed ? "ЗАКРЫТА" : "ОТКРЫТА")}");
+            Console.WriteLine($"Правая дверь: {(rightDoorClosed ? "ЗАКРЫТА" : "ОТКРЫТА")}");
+            Console.WriteLine($"Камера: {(cameraOpen ? "ВКЛ" : "ВЫКЛ")}");
+            Console.WriteLine($"Улучшения: +{batteryUpgrade*5}% батареи | Двери -{doorReinforce*2} энергии\n");
+            
+            if (cameraOpen)
+            {
+                Console.ForegroundColor = ConsoleColor.DarkCyan;
+                Console.WriteLine("--- КАМЕРА: ПОДСОБКА ---");
+                if (freddyPos == 0) Console.WriteLine("• Фредди здесь");
+                if (bonniePos == 0) Console.WriteLine("• Бонни здесь");
+                if (chicaPos == 0) Console.WriteLine("• Чика здесь");
+                if (freddyPos != 0 && bonniePos != 0 && chicaPos != 0)
+                    Console.WriteLine("Никого...");
+                Console.WriteLine("------------------------");
+                Console.ResetColor();
+            }
+            else
+            {
+                // Показываем угрозы в коридорах
+                if (freddyPos == 1) Console.ForegroundColor = ConsoleColor.Red;
+                if (freddyPos == 1) Console.WriteLine("⚠ ФРЕДДИ В ЛЕВОМ КОРИДОРЕ!");
+                if (bonniePos == 1) Console.WriteLine("⚠ БОННИ В ЛЕВОМ КОРИДОРЕ!");
+                if (chicaPos == 2) Console.ForegroundColor = ConsoleColor.Red;
+                if (chicaPos == 2) Console.WriteLine("⚠ ЧИКА В ПРАВОМ КОРИДОРЕ!");
+                if (freddyPos == 2) Console.WriteLine("⚠ ФРЕДДИ В ПРАВОМ КОРИДОРЕ!");
+                Console.ResetColor();
+            }
+            Console.WriteLine();
+        }
+        
+        static void HandleInput()
+        {
+            Console.WriteLine("[C] Камера  [L] Левая дверь  [R] Правая дверь  [Q] Выход");
+            Console.Write("Действие: ");
+            char key = Console.ReadKey(true).KeyChar;
+            
+            switch (char.ToUpper(key))
+            {
+                case 'C':
+                    cameraOpen = !cameraOpen;
+                    break;
+                case 'L':
+                    if (power > 0) leftDoorClosed = !leftDoorClosed;
+                    break;
+                case 'R':
+                    if (power > 0) rightDoorClosed = !rightDoorClosed;
+                    break;
+                case 'Q':
+                    gameRunning = false;
+                    break;
+            }
+        }
+        
+        static void MoveAnimatronics()
+        {
+            MoveOne(ref freddyPos);
+            MoveOne(ref bonniePos);
+            MoveOne(ref chicaPos);
+        }
+        
+        static void MoveOne(ref int pos)
+        {
+            int move = rand.Next(0, 3); // 0=стоять, 1=вперёд, 2=назад
+            if (move == 1)
+            {
+                if (pos == 0) pos = rand.Next(1, 3); // в коридор
+                else if (pos == 1 || pos == 2) pos = 3; // атака
+            }
+            else if (move == 2 && pos > 0)
+            {
+                pos--;
+            }
+        }
+        
+        static void CheckAttacks()
+        {
+            // Левый коридор: атакуют Фредди и Бонни
+            if (freddyPos == 3 && !leftDoorClosed)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("\n>>> ФРЕДДИ АТАКУЕТ СЛЕВА! <<<");
+                Console.ResetColor();
+                gameRunning = false;
+                return;
+            }
+            if (bonniePos == 3 && !leftDoorClosed)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("\n>>> БОННИ АТАКУЕТ СЛЕВА! <<<");
+                Console.ResetColor();
+                gameRunning = false;
+                return;
+            }
+            
+            // Правый коридор: атакует Чика
+            if (chicaPos == 3 && !rightDoorClosed)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("\n>>> ЧИКА АТАКУЕТ СПРАВА! <<<");
+                Console.ResetColor();
+                gameRunning = false;
+                return;
+            }
+            
+            // Если дверь закрыта - отбрасываем
+            if (freddyPos == 3 && leftDoorClosed) { Console.WriteLine("Фредди разбился о дверь!"); freddyPos = 0; }
+            if (bonniePos == 3 && leftDoorClosed) { Console.WriteLine("Бонни отскочил от двери!"); bonniePos = 0; }
+            if (chicaPos == 3 && rightDoorClosed) { Console.WriteLine("Чика не прошла дверь!"); chicaPos = 0; }
+        }
+        
+        static void ConsumePower()
+        {
+            int usage = 1;
+            if (cameraOpen) usage += 2;
+            if (leftDoorClosed) usage += 3 - doorReinforce * 2;
+            if (rightDoorClosed) usage += 3 - doorReinforce * 2;
+            
+            if (usage < 1) usage = 1;
+            power -= usage;
+            if (power < 0) power = 0;
+        }
+        
+        static void Shop()
+        {
+            Console.ForegroundColor = ConsoleColor.Magenta;
+            Console.WriteLine("\n╔════════════════════════════╗");
+            Console.WriteLine("║        МАГАЗИН             ║");
+            Console.WriteLine("╠════════════════════════════╣");
+            Console.WriteLine($"║ Монет: {coins}                   ║");
+            Console.WriteLine("╚════════════════════════════╝");
+            Console.ResetColor();
+            
+            bool shopping = true;
+            while (shopping)
+            {
+                Console.WriteLine("\n1. Улучшение батареи (+5% макс) - 40 монет");
+                Console.WriteLine($"   Уровень: {batteryUpgrade} → {batteryUpgrade+1} (макс: {maxPower}%)");
+                Console.WriteLine("2. Укрепление дверей (-2 энергии за дверь) - 50 монет");
+                Console.WriteLine($"   Уровень: {doorReinforce} → {doorReinforce+1} (экономия: {doorReinforce*2})");
+                Console.WriteLine("3. Выйти из магазина");
+                Console.Write("\nВыбор: ");
+                
+                string choice = Console.ReadLine();
+                switch (choice)
+                {
+                    case "1":
+                        if (coins >= 40)
+                        {
+                            coins -= 40;
+                            batteryUpgrade++;
+                            maxPower = 100 + batteryUpgrade * 5;
+                            Console.ForegroundColor = ConsoleColor.Green;
+                            Console.WriteLine($"✓ Батарея улучшена! Макс энергия: {maxPower}%");
+                            Console.ResetColor();
+                        }
+                        else Console.ForegroundColor = ConsoleColor.Red; Console.WriteLine("Не хватает монет!"); Console.ResetColor();
+                        break;
+                    case "2":
+                        if (coins >= 50)
+                        {
+                            coins -= 50;
+                            doorReinforce++;
+                            Console.ForegroundColor = ConsoleColor.Green;
+                            Console.WriteLine($"✓ Двери укреплены! Экономия энергии: {doorReinforce*2}");
+                            Console.ResetColor();
+                        }
+                        else Console.ForegroundColor = ConsoleColor.Red; Console.WriteLine("Не хватает монет!"); Console.ResetColor();
+                        break;
+                    case "3":
+                        shopping = false;
+                        break;
+                    default:
+                        Console.WriteLine("Неверный выбор");
+                        break;
+                }
+            }
+        }
+    }
+}
