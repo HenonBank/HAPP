@@ -1,0 +1,230 @@
+#include <stdio.h>
+#include <windows.h>
+#include <stdlib.h>
+#include <time.h>
+#include <conio.h>
+
+#define MAX_COLUMNS 300  // максимум столбцов
+
+typedef struct {
+    int y;
+    int speed;
+    char symbol;
+    int color;
+} Column;
+
+Column* columns;
+int width = 0;
+int height = 0;
+
+// Функция генерации случайного цвета (0-15, даёт 67+ сочетаний)
+int getRandomColor() {
+    int r = rand() % 3;
+    int color = rand() % 16;
+    if (r == 0) color |= 0x08; // яркость
+    if (r == 1) color |= 0x80; // мигание (в некоторых консолях)
+    return color;
+}
+
+// Установка цвета
+void setColor(int color) {
+    SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
+}
+
+// Спрятать курсор
+void hideCursor() {
+    CONSOLE_CURSOR_INFO cursorInfo;
+    GetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cursorInfo);
+    cursorInfo.bVisible = FALSE;
+    SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cursorInfo);
+}
+
+// Переместить курсор
+void gotoxy(int x, int y) {
+    COORD coord;
+    coord.X = x;
+    coord.Y = y;
+    SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+}
+
+// Получение размеров консоли и разворачивание на весь экран
+void setFullscreen() {
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    
+    // Максимальный размер окна
+    SMALL_RECT windowSize = {0, 0, 200, 60};
+    SetConsoleWindowInfo(hConsole, TRUE, &windowSize);
+    
+    // На весь экран через системную команду
+    system("mode con cols=200 lines=60");
+    
+    // Альтернативный способ растянуть
+    keybd_event(VK_MENU, 0x38, 0, 0);
+    keybd_event(VK_RETURN, 0x1c, 0, 0);
+    keybd_event(VK_RETURN, 0x1c, KEYEVENTF_KEYUP, 0);
+    keybd_event(VK_MENU, 0x38, KEYEVENTF_KEYUP, 0);
+    
+    Sleep(500);
+    
+    // Получаем реальные размеры
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(hConsole, &csbi);
+    width = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+    height = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+    
+    if (width <= 0) width = 200;
+    if (height <= 0) height = 60;
+    
+    // Пересоздаём массив столбцов
+    columns = realloc(columns, sizeof(Column) * width);
+}
+
+// Инициализация
+void initMatrix() {
+    for (int i = 0; i < width; i++) {
+        columns[i].y = rand() % height;
+        columns[i].speed = 1 + rand() % 5;
+        columns[i].symbol = 33 + rand() % 90;
+        columns[i].color = getRandomColor();
+    }
+}
+
+// Очистка экрана без мерцания
+void fastClear() {
+    COORD coord = {0, 0};
+    DWORD written;
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    GetConsoleScreenBufferInfo(hConsole, &csbi);
+    DWORD cells = csbi.dwSize.X * csbi.dwSize.Y;
+    FillConsoleOutputCharacter(hConsole, ' ', cells, coord, &written);
+    FillConsoleOutputAttribute(hConsole, 0, cells, coord, &written);
+}
+
+// Главная отрисовка МАТРИЦЫ
+void drawMatrix() {
+    for (int x = 0; x < width; x++) {
+        // Текущая позиция
+        int y = columns[x].y;
+        columns[x].y += columns[x].speed;
+        
+        // Перезапуск столбца
+        if (columns[x].y >= height) {
+            columns[x].y = 0;
+            columns[x].symbol = 33 + rand() % 90;
+            columns[x].color = getRandomColor();
+            columns[x].speed = 1 + rand() % 6;
+        }
+        
+        // ГЛАВНЫЙ символ (яркий)
+        char mainChar = 33 + rand() % 90;
+        gotoxy(x, y);
+        setColor(columns[x].color | 0x08); // яркий
+        printf("%c", mainChar);
+        
+        // ХВОСТ 1 (тусклее)
+        if (y > 0) {
+            gotoxy(x, y - 1);
+            setColor(columns[x].color & 0x07);
+            printf("%c", columns[x].symbol);
+        }
+        
+        // ХВОСТ 2 (ещё тусклее)
+        if (y > 1) {
+            gotoxy(x, y - 2);
+            setColor(columns[x].color & 0x07);
+            printf("%c", columns[x].symbol + 1);
+        }
+        
+        // Стирание хвоста
+        if (y > 3) {
+            gotoxy(x, y - 4);
+            setColor(0);
+            printf(" ");
+        }
+    }
+}
+
+// ХАУС - цветные взрывы
+void colorChaos() {
+    int explosions = 10 + rand() % 30;
+    for (int i = 0; i < explosions; i++) {
+        int x = rand() % width;
+        int y = rand() % height;
+        gotoxy(x, y);
+        setColor(rand() % 16);
+        printf("%c", 33 + rand() % 90);
+        Sleep(5);
+    }
+}
+
+// БОНУС: волна цвета
+void colorWave() {
+    for (int i = 0; i < width; i += 2) {
+        for (int j = 0; j < height; j += 2) {
+            gotoxy(i, j);
+            setColor(rand() % 16);
+            printf("%c", 65 + rand() % 26);
+        }
+        Sleep(10);
+    }
+}
+
+int main() {
+    srand(time(NULL));
+    
+    system("cls");
+    printf("Запуск МАТРИЦЫ НА ВЕСЬ ЭКРАН...\n");
+    printf("Нажмите ESC для выхода\n");
+    Sleep(2000);
+    
+    hideCursor();
+    setFullscreen();
+    fastClear();
+    
+    // Выделяем память под столбцы
+    columns = (Column*)malloc(sizeof(Column) * width);
+    initMatrix();
+    
+    printf("========================================\n");
+    printf("=== МАТРИЦА | 67+ ЦВЕТОВ | ПОЛНЫЙ ХАУС ===\n");
+    printf("========================================\n");
+    Sleep(1000);
+    
+    int frame = 0;
+    
+    // ОСНОВНОЙ ЦИКЛ
+    while (1) {
+        drawMatrix();
+        
+        // ХАУС-события
+        if (rand() % 100 < 3) {
+            colorChaos();
+        }
+        
+        if (frame % 300 == 0) {
+            colorWave();
+        }
+        
+        frame++;
+        
+        // Выход по ESC
+        if (GetAsyncKeyState(VK_ESCAPE)) {
+            break;
+        }
+        
+        Sleep(30); // скорость анимации
+    }
+    
+    // Очистка и выход
+    fastClear();
+    gotoxy(0, height / 2);
+    setColor(2);
+    printf("\n\n\t\tВЫ ВЫШЛИ ИЗ МАТРИЦЫ. ДОБРО ПОЖАЛОВАТЬ В РЕАЛЬНОСТЬ.\n\n");
+    setColor(7);
+    gotoxy(0, height - 1);
+    
+    free(columns);
+    system("pause");
+    return 0;
+}
