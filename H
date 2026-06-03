@@ -1,0 +1,132 @@
+#include <stdio.h>
+#include <windows.h>
+#include <stdlib.h>
+#include <time.h>
+
+#define WIDTH  80
+#define HEIGHT 25
+#define MAX_COLUMNS 80
+
+// Массив "столбцов" матрицы
+typedef struct {
+    int y;
+    int speed;
+    char symbol;
+    int color;
+} Column;
+
+Column columns[MAX_COLUMNS];
+
+// Функция генерации случайного цвета (0-15, даёт 67+ сочетаний через мигание)
+int getRandomColor() {
+    // 0-15 стандартных цветов консоли + дополнительные эффекты
+    return rand() % 16;
+}
+
+// Функция установки цвета
+void setColor(int color) {
+    SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
+}
+
+// Спрятать курсор
+void hideCursor() {
+    CONSOLE_CURSOR_INFO cursorInfo;
+    GetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cursorInfo);
+    cursorInfo.bVisible = FALSE;
+    SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cursorInfo);
+}
+
+// Переместить курсор
+void gotoxy(int x, int y) {
+    COORD coord;
+    coord.X = x;
+    coord.Y = y;
+    SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+}
+
+// Инициализация столбцов
+void initMatrix() {
+    for (int i = 0; i < WIDTH; i++) {
+        columns[i].y = rand() % HEIGHT;
+        columns[i].speed = 1 + rand() % 3;
+        columns[i].symbol = 33 + rand() % 90; // Разные символы
+        columns[i].color = getRandomColor();
+    }
+}
+
+// Обновление и отрисовка матрицы
+void drawMatrix() {
+    for (int x = 0; x < WIDTH; x++) {
+        // Случайный символ
+        char ch = 33 + rand() % 90;
+
+        // Падение вниз
+        int y = columns[x].y;
+        columns[x].y += columns[x].speed;
+        if (columns[x].y >= HEIGHT) {
+            columns[x].y = 0;
+            columns[x].symbol = 33 + rand() % 90;
+            columns[x].color = getRandomColor();
+        }
+
+        // Рисуем символ
+        gotoxy(x, y);
+        setColor(columns[x].color);
+        printf("%c", ch);
+
+        // 🔥 Эффект "хвоста" – предыдущий символ тусклее
+        if (y > 0) {
+            gotoxy(x, y - 1);
+            setColor(columns[x].color - 1); // тусклее
+            printf("%c", columns[x].symbol);
+        }
+
+        // Стираем хвост через 3 шага
+        if (y > 2) {
+            gotoxy(x, y - 3);
+            setColor(0);
+            printf(" ");
+        }
+    }
+}
+
+// Дополнительная анимация: цветной хаос
+void colorChaos() {
+    for (int i = 0; i < 30; i++) {
+        setColor(rand() % 16);
+        gotoxy(rand() % WIDTH, rand() % HEIGHT);
+        printf("%c", 65 + rand() % 26);
+        Sleep(20);
+    }
+}
+
+int main() {
+    srand(time(NULL));
+    hideCursor();
+    system("cls");
+
+    initMatrix();
+
+    printf("============ МАТРИЦА + 67+ ЦВЕТОВ + ПОЛНЫЙ ХАУС ============\n");
+    printf("Нажмите любую клавишу для выхода...\n\n");
+
+    // Основной цикл анимации
+    while (!kbhit()) {  // пока не нажата клавиша
+        drawMatrix();
+
+        // Иногда добавляем дополнительный хаос
+        if (rand() % 100 < 5) {
+            colorChaos();
+        }
+
+        Sleep(80); // скорость падения
+    }
+
+    // Возвращаем стандартный вид
+    system("cls");
+    setColor(7);
+    gotoxy(0, HEIGHT - 1);
+    printf("Выход из МАТРИЦЫ. Вселенная спасена.\n");
+
+    return 0;
+}
