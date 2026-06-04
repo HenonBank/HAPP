@@ -1,0 +1,28 @@
+#include <stdio.h>
+
+#include <Windows.h>
+
+void main() {
+
+int v1, v2, v3;
+
+int max;
+
+SetConsoleCP (1251);
+
+SetConsoleOutputCP (1251);
+
+printf("Введите 3 числа: ");
+
+scanf_s("%d%d%d", &v1, v2, &v3);
+
+max = v1;
+
+if (v2 > max) {
+
+max = v2;
+
+}
+
+printf("max = %d", max);
+} 
